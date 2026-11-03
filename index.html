@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pusat PPOB & Madu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans p-4">
+
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden mt-10">
+        <div class="bg-blue-600 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold">Pusat PPOB & Madu</h1>
+            <p class="text-sm opacity-90 mt-1">Bayar Tagihan & Beli Kuota</p>
+        </div>
+
+        <div class="p-6">
+            <form id="formPesanan" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Kategori</label>
+                    <select id="kategori" class="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md" required>
+                        <option value="">Memuat data dari server...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Pilih Produk</label>
+                    <select id="produk" class="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-gray-100" required disabled>
+                        <option value="">-- Pilih Kategori Dulu --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Nomor Tujuan / ID</label>
+                    <input type="text" id="tujuan" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" placeholder="Contoh: 08123456789" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Nama Anda</label>
+                    <input type="text" id="nama" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" placeholder="Masukkan Nama" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">No. WhatsApp</label>
+                    <input type="text" id="kontak" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" placeholder="Contoh: 08123456789" required>
+                </div>
+
+                <div class="bg-blue-50 p-3 rounded-md border border-blue-200">
+                    <p class="text-sm text-blue-800">Total Harga: <span id="hargaTampil" class="font-bold text-lg">Rp 0</span></p>
+                </div>
+
+                <button type="submit" id="btnPesan" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 transition">
+                    Pesan Sekarang
+                </button>
+            </form>
+            <div id="pesan" class="mt-4 hidden p-3 rounded-md text-sm text-center"></div>
+        </div>
+    </div>
+
+    <script>
+        // URL BACKEND ANDA
+        const URL_BACKEND = "https://script.google.com/macros/s/AKfycbyBykOqIWmpGXM3XnwU8FfGTM7LUewGLMWM3ZULOjQ65FonMaWjY6snGEM40DwyT5uQhA/exec"; 
+        let dataProduk = [];
+
+        fetch(URL_BACKEND)
+            .then(response => response.json())
+            .then(data => {
+                let dataAsli = data;
+                if (data.data) dataAsli = data.data;
+                if (data.produk) dataAsli = data.produk;
+
+                if (Array.isArray(dataAsli) && dataAsli.length > 0) {
+                    dataProduk = dataAsli; 
+                    isiKategori();
+                } else {
+                    dataProduk = data;
+                    isiKategori();
+                }
+            })
+            .catch(error => {
+                document.getElementById('kategori').innerHTML = '<option value="">Gagal konek ke server</option>';
+            });
+
+        function isiKategori() {
+            const selectKategori = document.getElementById('kategori');
+            selectKategori.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+            const daftarKategori = [...new Set(dataProduk.map(item => item.kategori || item.category || item.type))];
+            
+            daftarKategori.forEach(kat => {
+                if(kat) { 
+                    const opt = document.createElement('option');
+                    opt.value = kat;
+                    opt.textContent = kat;
+                    selectKategori.appendChild(opt);
+                }
+            });
+        }
+
+        document.getElementById('kategori').addEventListener('change', function() {
+            const katDipilih = this.value;
+            const selectProduk = document.getElementById('produk');
+            selectProduk.innerHTML = '<option value="">-- Pilih Produk --</option>';
+            selectProduk.disabled = true;
+            document.getElementById('hargaTampil').innerText = "Rp 0";
+
+            if (!katDipilih) return;
+            selectProduk.disabled = false;
+            const produkFilter = dataProduk.filter(item => (item.kategori || item.category || item.type) === katDipilih);
+
+            produkFilter.forEach(prod => {
+                const opt = document.createElement('option');
+                const kode = prod.kode || prod.code || prod.id;
+                const nama = prod.nama || prod.name || prod.produk || prod.product;
+                const harga = prod.harga || prod.price || prod.harga_umum;
+                opt.value = JSON.stringify({ kode: kode, harga: harga, nama: nama });
+                opt.textContent = `${nama} - Rp ${harga}`;
+                selectProduk.appendChild(opt);
+            });
+        });
+
+        document.getElementById('produk').addEventListener('change', function() {
+            if (!this.value) {
+                document.getElementById('hargaTampil').innerText = "Rp 0";
+                return;
+            }
+            const dataTerpilih = JSON.parse(this.value);
+            document.getElementById('hargaTampil').innerText = "Rp " + dataTerpilih.harga;
+        });
+
+        // --- BAGIAN INI SUDAH SAYA UBAH UNTUK KIRIM KE VERCEL ---
+        document.getElementById('formPesanan').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnPesan');
+            const pesanDiv = document.getElementById('pesan');
+            
+            btn.innerText = "Memproses...";
+            btn.disabled = true;
+            pesanDiv.className = "mt-4 hidden";
+
+            const dataProduk = JSON.parse(document.getElementById('produk').value);
+            
+            const payload = {
+                kode_produk: dataProduk.kode,
+                no_tujuan: document.getElementById('tujuan').value,
+                nama: document.getElementById('nama').value,
+                kontak: document.getElementById('kontak').value,
+                harga_jual: dataProduk.harga
+            };
+
+            try {
+                // Memanggil API Vercel (folder api/order.js)
+                const response = await fetch('/api/order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    pesanDiv.className = "mt-4 p-3 rounded-md text-sm text-center bg-green-100 text-green-800 block";
+                    pesanDiv.innerHTML = "✅ Pesanan berhasil diproses!";
+                    this.reset();
+                } else {
+                    throw new Error(result.message || "Gagal");
+                }
+            } catch (error) {
+                pesanDiv.className = "mt-4 p-3 rounded-md text-sm text-center bg-red-100 text-red-800 block";
+                pesanDiv.innerHTML = "❌ Error: " + error.message;
+            } finally {
+                btn.innerText = "Pesan Sekarang";
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
