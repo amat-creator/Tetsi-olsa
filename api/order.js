@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     const params = new URLSearchParams();
     params.append('username', username);
     params.append('password', password);
-    params.append('api_key', apiKey);
+    // params.append('api_key', apiKey);
     params.append('produk', kode_produk);
     params.append('tujuan', no_tujuan);
     params.append('refID', 'WEB-' + Date.now()); // ID unik dari sistem kita
